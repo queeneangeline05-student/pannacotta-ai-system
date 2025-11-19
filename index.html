@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Mood Chatbot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f4f4f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .chat-container {
+      background: #ffffff;
+      width: 100%;
+      max-width: 480px;
+      height: 80vh;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .chat-header {
+      padding: 16px;
+      background: #4f46e5;
+      color: white;
+    }
+    .chat-header h1 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+    .chat-header p {
+      margin: 4px 0 0;
+      font-size: 0.8rem;
+      opacity: 0.9;
+    }
+    .mood-selector {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .mood-btn {
+      border: none;
+      background: rgba(255,255,255,0.15);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .mood-btn.active {
+      background: #22c55e;
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+      background: #f9fafb;
+    }
+    .message {
+      max-width: 80%;
+      margin-bottom: 10px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      line-height: 1.3;
+      word-wrap: break-word;
+    }
+    .message.user {
+      margin-left: auto;
+      background: #4f46e5;
+      color: white;
+      border-bottom-right-radius: 2px;
+    }
+    .message.bot {
+      margin-right: auto;
+      background: white;
+      border-bottom-left-radius: 2px;
+      border: 1px solid #e5e7eb;
+    }
+    .chat-input {
+      padding: 8px;
+      border-top: 1px solid #e5e7eb;
+      background: white;
+      display: flex;
+      gap: 8px;
+    }
+    .chat-input input {
+      flex: 1;
+      padding: 10px;
+      border-radius: 999px;
+      border: 1px solid #d4d4d8;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .chat-input button {
+      border-radius: 999px;
+      border: none;
+      padding: 0 16px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background: #4f46e5;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .chat-input button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">
+      <h1>AI Mood Chatbot</h1>
+      <p>Pilih mood kamu, lalu mulai ngobrol ✨</p>
+      <div class="mood-selector">
+        <button class="mood-btn active" data-mood="neutral">🙂 Neutral</button>
+        <button class="mood-btn" data-mood="happy">😄 Happy</button>
+        <button class="mood-btn" data-mood="sad">😢 Sad</button>
+        <button class="mood-btn" data-mood="angry">😠 Angry</button>
+      </div>
+    </div>
+
+    <div class="chat-messages" id="chatMessages"></div>
+
+    <div class="chat-input">
+      <input id="messageInput" type="text" placeholder="Tulis pesanmu di sini..." />
+      <button id="sendBtn">Kirim</button>
+    </div>
+  </div>
+
+  <script>
+    const apiBase = "/api/chat";
+    const chatMessages = document.getElementById("chatMessages");
+    const messageInput = document.getElementById("messageInput");
+    const sendBtn = document.getElementById("sendBtn");
+
+    let currentMood = "neutral";
+
+    document.querySelectorAll(".mood-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".mood-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentMood = btn.getAttribute("data-mood");
+      });
+    });
+
+    function addMessageToChat(text, sender = "bot") {
+      const div = document.createElement("div");
+      div.classList.add("message", sender);
+      div.textContent = text;
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const text = messageInput.value.trim();
+      if (!text) return;
+
+      addMessageToChat(text, "user");
+      messageInput.value = "";
+      messageInput.focus();
+      sendBtn.disabled = true;
+
+      try {
+        const res = await fetch(apiBase, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            message: text,
+            mood: currentMood
+          })
+        });
+
+        if (!res.ok) {
+          throw new Error("Gagal memanggil API");
+        }
+
+        const data = await res.json();
+        addMessageToChat(data.reply, "bot");
+      } catch (err) {
+        console.error(err);
+        addMessageToChat("⚠️ Terjadi error saat menghubungi server.", "bot");
+      } finally:
+        sendBtn.disabled = false;
+      }
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+    messageInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") sendMessage();
+    });
+
+    addMessageToChat("Hai! Pilih mood kamu di atas, lalu kirim pesan pertama kamu 😊", "bot");
+  </script>
+</body>
+</html>
